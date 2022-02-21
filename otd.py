@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 
 import argparse
-import datetime
 import logging
 import time
-from datetime import date
 from typing import Union
 
 from onthisday.calendar import make_calendar
-from onthisday.common_data import MONTH_DAYS
+from onthisday.common_data import MONTH_DAYS, date_from_yyyymmdd
 from onthisday.db import DAO, InMemory
 from onthisday.get_data import parse_all_to_db
 
+logger = logging.getLogger(__name__)
 
 def update(db: DAO, ns: argparse.Namespace):
+    logger.info('Updating database.')
     parse_all_to_db(db)
 
 
@@ -26,6 +26,7 @@ CATEGORIES = {
 
 
 def random(db: DAO, ns: argparse.Namespace):
+    logger.info('Getting random events.')
     count = int(ns.count)
     cat = CATEGORIES.get(ns.category)
     month = ns.month
@@ -35,42 +36,30 @@ def random(db: DAO, ns: argparse.Namespace):
 
 
 def calendar(db: DAO, ns: argparse.Namespace):
+    logger.info('Generating calendar.')
     category_counts = {
         'Deaths': ns.death,
         'Births': ns.birth,
         'Holidays and observances': ns.holiday
     }
-    if set(category_counts.values()) == {None}:
-        for c in category_counts:
-            category_counts[c] = 1
-    if ns.start:
-        start = date(
-            int(ns.start[:4]),
-            int(ns.start[4:6]),
-            int(ns.start[6:])
-        )
-    else:
-        start = date.today()
-    if ns.end:
-        end = date(
-            int(ns.end[:4]),
-            int(ns.end[4:6]),
-            int(ns.end[6:])
-        )
-    else:
-        end = start + datetime.timedelta(weeks=52)
+    start = date_from_yyyymmdd(ns.start)
+    end = date_from_yyyymmdd(ns.end)
     h_str, m_str = ns.time.split(':')
-    cal = make_calendar(db, start, end, (int(h_str), int(m_str)), category_counts)
+    cal = make_calendar(db, start, end, int(h_str), int(m_str), ns.timezone, categories=category_counts)
     print(cal.to_ical().decode())
 
 
+def server(db: DAO, ns: argparse.Namespace):
+    logger.info('Launching server.')
+    from onthisday.app.download_calendar import run
+    run(InMemory(db), ns.host, ns.port)
+
+
 def test_calendar(db: Union[DAO, InMemory]) -> str:
+    logger.info('Testing calendar.')
     return make_calendar(
         db,
-        date.today(),
-        date.today() + datetime.timedelta(weeks=52),
-        (10, 0),
-        {
+        categories={
             'Deaths': 1,
             'Births': 1,
             'Holidays and observances': 1
@@ -133,7 +122,14 @@ cal_parser.add_argument('--death', type=int, help='Number of deaths to include p
 cal_parser.add_argument('--birth', type=int, help='Number of births to include per day.', default=None, metavar='N')
 cal_parser.add_argument('--holiday', type=int, help='Number of holidays/observances to include per day.', default=None,
                         metavar='N')
+cal_parser.add_argument('--timezone', default='UTC', metavar='TZ',
+                        help='Timezone for event time, eg, "UTC", "Europe/London", "America/New_York", etc.')
 cal_parser.set_defaults(func=calendar)
+
+serv_parser = subparsers.add_parser('server', help='Spin up a web app to serve calendars.')
+serv_parser.add_argument('--host', help='Host to serve on.', default='localhost')
+serv_parser.add_argument('--port', help='Port to listen on.', type=int, default=8080)
+serv_parser.set_defaults(func=server)
 
 
 if __name__ == '__main__':

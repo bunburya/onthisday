@@ -9,8 +9,9 @@ wikitextparser = "*"
 appdirs = "*"
 icalendar = "*"
 flask = "*"
+pytz = "*"
 
 [dev-packages]
+requests = "*"
 
 [requires]
-python_version = "3.10"

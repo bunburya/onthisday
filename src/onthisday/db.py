@@ -4,7 +4,7 @@ from random import sample
 from typing import Optional, Any
 
 import appdirs
-from onthisday.common_data import MONTH_DAYS, EMPTY_EVENT_DICT, iter_dates
+from onthisday.common_data import MONTH_DAYS, EMPTY_EVENT_DICT
 
 
 def build_select(table: str, *cols: str, **criteria: str) -> str:

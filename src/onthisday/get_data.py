@@ -8,6 +8,7 @@ from mediawiki import MediaWiki
 from onthisday.common_data import MONTH_DAYS, EMPTY_EVENT_DICT, iter_dates
 from onthisday.db import DAO
 
+logger = logging.getLogger(__name__)
 
 class ParsingError(Exception):
     """
@@ -178,19 +179,19 @@ def parse_date_to_db(month: str, date: int, db: DAO) -> int:
     try:
         rev_id, parsed = parse_page(title, wiki, last_rev_id)
     except AlreadyScraped as e:
-        logging.info(e.args[0])
+        logger.info(e.args[0])
         raise e
     except ParsingError as e:
-        logging.error(f'Error when parsing {title}: {e.args[0]}')
+        logger.error(f'Error when parsing {title}: {e.args[0]}')
         raise e
     if parsed == empty_events_dict():
         msg = f'Got empty dict when parsing {title}.'
-        logging.error(msg)
+        logger.error(msg)
         raise ParsingError(msg)
     n = db.insert_events(month, date, rev_id, parsed)
     db.insert_revision(month, date, rev_id)
     db.commit()
-    logging.info(f'Inserted {n} events for {title}; revision ID {rev_id}.')
+    logger.info(f'Inserted {n} events for {title}; revision ID {rev_id}.')
     return n
 
 
